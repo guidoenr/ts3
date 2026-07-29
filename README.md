@@ -14,7 +14,15 @@ Server de TeamSpeak 3 clásico corriendo en una VM gratuita de Oracle Cloud Infr
 
 1. **La "home region" se elige en el signup y después es prácticamente imposible cambiarla** (requiere ticket de soporte o cuenta nueva). Elegí **Chile Central (Santiago)** o **Chile West (Valparaíso)** al registrarte.
 2. Piden **tarjeta de crédito** para verificar identidad, aunque el tier Always Free no cobra nada mientras te mantengas dentro de los límites gratuitos.
-3. Las instancias ARM `A1.Flex` gratuitas son muy pedidas y **es común el error "Out of host capacity"** al crearlas. Si te pasa: probá en otro Availability Domain (AD) dentro de la misma región, o reintentá en otro horario. Como plan B existe el shape `VM.Standard.E2.1.Micro` (AMD, siempre disponible, pero solo 1 GB RAM — alcanza de sobra para TS3 solo, que es muy liviano).
+3. Las instancias ARM `A1.Flex` gratuitas son muy pedidas y **es común el error "Out of host capacity"** al crearlas. Santiago (`sa-santiago-1`) tiene un solo Availability Domain, así que no hay AD alternativo para rotar — la única opción es reintentar (`scripts/provision_oracle.sh` ya reintenta solo) o probar en otro horario. Como plan B existe el shape `VM.Standard.E2.1.Micro` (AMD, siempre disponible, pero solo 1 GB RAM — alcanza de sobra para TS3 solo, que es muy liviano).
+
+## Automatización con OCI CLI (opcional)
+
+En vez de clickear toda la consola web (Pasos 1 a 6), se puede automatizar todo desde terminal con [oci-cli](https://docs.oracle.com/iaas/Content/API/SDKDocs/cliinstall.htm):
+
+1. Una sola vez, a mano en la consola: generar un API Signing Key (**Profile → User settings → API Keys → Add API Key**) y armar `~/.oci/config` con `user`, `fingerprint`, `tenancy`, `region` y `key_file`.
+2. `./scripts/provision_oracle.sh` — crea VCN, internet gateway, ruta, security list, subnet, par de claves SSH (`~/.ssh/ts3_oracle`) y la instancia (reintentando solo ante "Out of host capacity"). Es idempotente, se puede volver a correr sin duplicar recursos.
+3. `./scripts/remote_deploy.sh <PUBLIC_IP>` — espera a que SSH esté listo y corre el deploy completo (clone + `bootstrap.sh`) en la VM ya creada.
 
 ## Paso 1 — Crear la cuenta de Oracle Cloud
 
@@ -65,7 +73,7 @@ cd ts3
 ./scripts/bootstrap.sh
 ```
 
-El script instala Docker + Compose, abre los puertos en iptables, y levanta el `docker-compose.yml`.
+El script instala Docker + Compose, abre los puertos en iptables, instala un keepalive anti-reclamo (ver sección "Costos y disponibilidad" más abajo), y levanta el `docker-compose.yml`.
 
 ## Paso 5 — Guardar las credenciales de admin
 
@@ -87,6 +95,12 @@ Desde el cliente TeamSpeak 3 clásico, conectate a `<PUBLIC_IP>` (puerto 9987 po
 - **Reiniciar**: `sudo docker compose restart teamspeak`
 - **Actualizar imagen**: `sudo docker compose pull && sudo docker compose up -d`
 - **Backup**: el volumen `ts3-data` vive en `/var/lib/docker/volumes/ts3-data/_data`. Conviene copiarlo periódicamente a otro lado (ej. `rsync` a tu máquina, o antes de cualquier actualización mayor).
+
+## Costos y disponibilidad
+
+- **Costo**: los recursos "Always Free" (A1.Flex hasta 4 OCPU/24GB, 200GB de storage, 10TB/mes de salida) son gratis de por vida mientras te mantengas dentro de esos límites — no es un trial de 30 días. El tráfico de voz de TS3 es insignificante comparado con el límite de salida.
+- **Reclamo por inactividad**: Oracle apaga (no borra) instancias A1.Flex Always Free si durante 7 días el percentil 95 de uso de CPU, red y memoria está simultáneamente por debajo del 20%. Si el server queda una semana sin uso real, corre riesgo de que lo paren solo. `bootstrap.sh` instala `ts3-keepalive.service` (systemd + `stress-ng` a baja prioridad, ~25% de un core) para que el uso de CPU nunca caiga del umbral y la instancia no se considere idle. Es intencional que quede corriendo siempre — no es un bug ni un proceso descolgado.
+- Ver `oci compute instance action --action START` (o la consola) si alguna vez la ves parada: es reversible, no se pierde nada.
 
 ## Troubleshooting
 

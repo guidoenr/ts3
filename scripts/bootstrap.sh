@@ -38,6 +38,24 @@ add_rule tcp 10011
 add_rule tcp 30033
 sudo netfilter-persistent save
 
+echo "==> Instalando keepalive anti-reclamo (Oracle apaga instancias A1.Flex Always Free si CPU, red y memoria están por debajo del 20% sostenido durante 7 días)"
+sudo apt-get install -y stress-ng >/dev/null 2>&1 || true
+sudo tee /etc/systemd/system/ts3-keepalive.service > /dev/null << 'EOF'
+[Unit]
+Description=Keepalive minimo para evitar reclamo de Oracle Always Free
+
+[Service]
+Nice=19
+IOSchedulingClass=idle
+ExecStart=/usr/bin/stress-ng --cpu 1 --cpu-load 25 --timeout 0
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl daemon-reload
+sudo systemctl enable --now ts3-keepalive.service
+
 echo "==> Levantando docker compose"
 cd "$REPO_DIR"
 if [ ! -f .env ]; then
