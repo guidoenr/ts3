@@ -60,7 +60,7 @@ sudo netfilter-persistent save
 
 ```bash
 ssh -i /ruta/a/tu/clave_privada ubuntu@<PUBLIC_IP>
-git clone <URL_DE_TU_REPO_EN_GITHUB> ts3
+git clone https://github.com/guidoenr/ts3.git
 cd ts3
 ./scripts/bootstrap.sh
 ```
