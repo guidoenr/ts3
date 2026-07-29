@@ -1,0 +1,17 @@
+services:
+  teamspeak:
+    image: teamspeak:latest
+    container_name: ts3-server
+    restart: unless-stopped
+    ports:
+      - "9987:9987/udp"   # Voz
+      - "10011:10011/tcp" # ServerQuery (admin)
+      - "30033:30033/tcp" # Transferencia de archivos
+    environment:
+      TS3SERVER_LICENSE: ${TS3SERVER_LICENSE:-accept}
+    volumes:
+      - ts3-data:/var/ts3server/
+
+volumes:
+  ts3-data:
+    name: ts3-data
