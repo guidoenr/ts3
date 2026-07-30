@@ -2,3 +2,4 @@
 .claude/
 data/
 *.log
+__pycache__/

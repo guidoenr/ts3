@@ -87,7 +87,21 @@ Guardá ese login/password y el token en un lugar seguro (gestor de contraseñas
 
 ## Paso 6 — Conectarte con el cliente
 
-Desde el cliente TeamSpeak 3 clásico, conectate a `<PUBLIC_IP>` (puerto 9987 por default, no hace falta especificarlo). Para tomar privilegios de admin: **Permissions → Use Privilege Key** y pegá el token del paso anterior.
+Desde el cliente TeamSpeak 3 clásico (o TeamSpeak 6, ver más abajo), conectate a `<PUBLIC_IP>` con la password del server (ver sección siguiente). El *privilege key* del Paso 5 sigue funcionando como respaldo por si algo de la configuración automática falla, pero con la config actual no debería hacer falta: todo el que entra ya queda con admin.
+
+## Configuración automática del server
+
+`bootstrap.sh` levanta el container, y a continuación `scripts/configure_server.sh` se conecta por **ServerQuery** (puerto 10011, localhost) y configura el virtual server la primera vez que arranca — nombre, password, canales y permisos — sin que haya que tocar nada a mano. Esto corre solo como parte de `remote_deploy.sh`; si el server ya arrancó antes (ya tiene historial), el script no encuentra credenciales nuevas en los logs y no hace nada (evita pisar configuración existente).
+
+Los valores salen de variables de entorno (poné un `.env` antes del primer deploy si querés cambiarlos — ver `.env.example`):
+
+| Variable | Default |
+|---|---|
+| `TS3_SERVER_NAME` | `el SERVER del guidoti` |
+| `TS3_SERVER_PASSWORD` | `asdf` |
+| `TS3_CHANNEL_1` / `_2` / `_3` | `LOBBYS`, `MIX10-Team1`, `MIX10-Team2` |
+
+**⚠️ Todo el que se conecta queda con el grupo "Server Admin" por default** (se cambia `virtualserver_default_server_group` vía ServerQuery). Es intencional — así lo pidió quien lo armó, para no andar gestionando permisos en un server chico de amigos — pero significa que cualquiera con la password puede kickear/banear a otros, borrar canales o cambiar la configuración. Si en algún momento eso deja de tener sentido (server más grande, gente que no conocés), lo primero que hay que tocar es esa property.
 
 ## Mantenimiento
 

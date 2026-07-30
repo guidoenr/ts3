@@ -36,8 +36,9 @@ else
   git clone "$REPO_URL" ts3
   cd ts3
 fi
-chmod +x scripts/bootstrap.sh
+chmod +x scripts/bootstrap.sh scripts/configure_server.sh
 ./scripts/bootstrap.sh
+./scripts/configure_server.sh
 REMOTE
 
 echo ""
