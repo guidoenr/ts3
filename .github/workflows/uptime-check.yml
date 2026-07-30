@@ -1,0 +1,25 @@
+name: TS3 uptime check
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chequear que ServerQuery (10011/tcp) responda
+        env:
+          TS3_HOST: ${{ vars.TS3_HOST }}
+        run: |
+          if [ -z "$TS3_HOST" ]; then
+            echo "::error::Falta la variable de repo TS3_HOST (Settings -> Secrets and variables -> Actions -> Variables)"
+            exit 1
+          fi
+          if nc -z -w 10 "$TS3_HOST" 10011; then
+            echo "OK: $TS3_HOST:10011 responde"
+          else
+            echo "::error::No se pudo conectar a $TS3_HOST:10011 - el server parece estar caido"
+            exit 1
+          fi
