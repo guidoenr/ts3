@@ -144,12 +144,16 @@ def main():
             print(f"==> canal '{name}' ya existe, no lo vuelvo a crear")
             continue
         print(f"==> creando canal '{name}'")
-        sq.send(f"channelcreate channel_name={escape(name)} cpid=0")
+        sq.send(f"channelcreate channel_name={escape(name)} cpid=0 channel_flag_permanent=1")
 
     print("==> buscando el grupo 'Server Admin'")
     groups = parse_kv_lines(sq.send("servergrouplist"))
     admin_group = next(
-        (g for g in groups if g.get("name", "").replace("\\s", " ") == "Server Admin"),
+        (
+            g
+            for g in groups
+            if g.get("name", "").replace("\\s", " ") == "Server Admin" and g.get("type") == "1"
+        ),
         None,
     )
     if admin_group is None:
