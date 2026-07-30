@@ -102,11 +102,12 @@ def parse_kv_lines(lines):
 
 
 def main():
-    if len(sys.argv) != 7:
-        print(f"Uso: {sys.argv[0]} <serveradmin_password> <server_name> <server_password> <canal1> <canal2> <canal3>", file=sys.stderr)
+    if len(sys.argv) != 8:
+        print(f"Uso: {sys.argv[0]} <serveradmin_password> <server_name> <server_password> <canal1> <canal2> <canal3> <everyone_admin:true|false>", file=sys.stderr)
         sys.exit(1)
 
-    admin_password, server_name, server_password, ch1, ch2, ch3 = sys.argv[1:7]
+    admin_password, server_name, server_password, ch1, ch2, ch3, everyone_admin = sys.argv[1:8]
+    everyone_admin = everyone_admin.strip().lower() == "true"
 
     sock = socket.create_connection((HOST, PORT), timeout=10)
     sq = ServerQuery(sock)
@@ -146,21 +147,22 @@ def main():
         print(f"==> creando canal '{name}'")
         sq.send(f"channelcreate channel_name={escape(name)} cpid=0 channel_flag_permanent=1")
 
-    print("==> buscando el grupo 'Server Admin'")
+    target_group_name = "Server Admin" if everyone_admin else "Guest"
+    print(f"==> buscando el grupo '{target_group_name}' (type=1, no el template)")
     groups = parse_kv_lines(sq.send("servergrouplist"))
-    admin_group = next(
+    target_group = next(
         (
             g
             for g in groups
-            if g.get("name", "").replace("\\s", " ") == "Server Admin" and g.get("type") == "1"
+            if g.get("name", "").replace("\\s", " ") == target_group_name and g.get("type") == "1"
         ),
         None,
     )
-    if admin_group is None:
-        print("ATENCION: no encontre el grupo 'Server Admin', salteo el paso de admin-para-todos", file=sys.stderr)
+    if target_group is None:
+        print(f"ATENCION: no encontre el grupo '{target_group_name}', dejo el default como esta", file=sys.stderr)
     else:
-        sgid = admin_group["sgid"]
-        print(f"==> seteando '{sgid}' (Server Admin) como grupo default de todo el que se conecta")
+        sgid = target_group["sgid"]
+        print(f"==> seteando '{sgid}' ({target_group_name}) como grupo default de todo el que se conecta")
         sq.send(f"serveredit virtualserver_default_server_group={sgid}")
 
     sq.send("quit")

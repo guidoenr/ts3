@@ -87,7 +87,7 @@ Guardá ese login/password y el token en un lugar seguro (gestor de contraseñas
 
 ## Paso 6 — Conectarte con el cliente
 
-Desde el cliente TeamSpeak 3 clásico (o TeamSpeak 6, ver más abajo), conectate a `<PUBLIC_IP>` con la password del server (ver sección siguiente). El *privilege key* del Paso 5 sigue funcionando como respaldo por si algo de la configuración automática falla, pero con la config actual no debería hacer falta: todo el que entra ya queda con admin.
+Desde el cliente TeamSpeak 3 clásico (o TeamSpeak 6), conectate a `<PUBLIC_IP>` con la password del server. La gente nueva entra como usuario normal (Guest) — el *privilege key* del Paso 5 es cómo el owner se vuelve admin la primera vez; desde ahí, click derecho sobre cualquier usuario conectado → **Add Client to Server Group → Server Admin** para promoverlo a mano cuando quieras.
 
 ## Configuración automática del server
 
@@ -100,8 +100,9 @@ Los valores salen de variables de entorno (poné un `.env` antes del primer depl
 | `TS3_SERVER_NAME` | `el SERVER del guidoti` |
 | `TS3_SERVER_PASSWORD` | `asdf` |
 | `TS3_CHANNEL_1` / `_2` / `_3` | `LOBBYS`, `MIX10-Team1`, `MIX10-Team2` |
+| `TS3_EVERYONE_ADMIN` | `false` |
 
-**⚠️ Todo el que se conecta queda con el grupo "Server Admin" por default** (se cambia `virtualserver_default_server_group` vía ServerQuery). Es intencional — así lo pidió quien lo armó, para no andar gestionando permisos en un server chico de amigos — pero significa que cualquiera con la password puede kickear/banear a otros, borrar canales o cambiar la configuración. Si en algún momento eso deja de tener sentido (server más grande, gente que no conocés), lo primero que hay que tocar es esa property.
+Por default, la gente nueva entra como **Guest** normal — el owner se vuelve admin con la privilege key y promueve a mano a quien quiera desde el cliente (más seguro: si la password se filtra, un desconocido entra sin poder romper nada). Poniendo `TS3_EVERYONE_ADMIN=true` en `.env` antes del primer deploy, en cambio, todo el que se conecta queda admin automáticamente — más cómodo para un grupo muy chico y de mucha confianza, pero cualquiera con la password puede kickear/banear o borrar canales. Como el repo es público, si usás ese modo evitá dejar la password real en `.env.example`/git.
 
 ## Mantenimiento
 

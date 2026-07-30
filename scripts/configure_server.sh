@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Corre esto en la VM despues de bootstrap.sh (remote_deploy.sh ya lo encadena solo).
-# Configura el virtual server 1 la primera vez que arranca: nombre, password, canales,
-# y deja a todo el que se conecte con el grupo "Server Admin" por default.
+# Configura el virtual server 1 la primera vez que arranca: nombre, password, canales, y el
+# grupo default para gente nueva (Guest por defecto - ver TS3_EVERYONE_ADMIN mas abajo).
+# El owner se vuelve admin con la privilege key de los logs (Paso 5 del README), como en
+# cualquier server TS3 estandar; despues puede promover a quien quiera desde el cliente.
 #
 # Es un paso de una sola vez: si el server ya tiene el login de serveradmin (porque ya se
 # corrio antes), no vuelve a aparecer en los logs y este script se sale sin romper nada.
@@ -22,6 +24,7 @@ SERVER_PASSWORD="${TS3_SERVER_PASSWORD:-asdf}"
 CHANNEL_1="${TS3_CHANNEL_1:-LOBBYS}"
 CHANNEL_2="${TS3_CHANNEL_2:-MIX10-Team1}"
 CHANNEL_3="${TS3_CHANNEL_3:-MIX10-Team2}"
+EVERYONE_ADMIN="${TS3_EVERYONE_ADMIN:-false}"
 
 echo "==> Buscando la contrasena de serveradmin en los logs..."
 ADMIN_PASSWORD=""
@@ -48,6 +51,6 @@ done
 
 echo "==> Aplicando configuracion via ServerQuery..."
 python3 "$REPO_DIR/scripts/ts3_configure.py" \
-  "$ADMIN_PASSWORD" "$SERVER_NAME" "$SERVER_PASSWORD" "$CHANNEL_1" "$CHANNEL_2" "$CHANNEL_3"
+  "$ADMIN_PASSWORD" "$SERVER_NAME" "$SERVER_PASSWORD" "$CHANNEL_1" "$CHANNEL_2" "$CHANNEL_3" "$EVERYONE_ADMIN"
 
 echo "==> Server configurado: '$SERVER_NAME', canales [$CHANNEL_1, $CHANNEL_2, $CHANNEL_3], password del server '$SERVER_PASSWORD'."
