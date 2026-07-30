@@ -131,8 +131,12 @@ def main():
     default = next((c for c in channels if c.get("channel_flag_default") == "1"), channels[0])
     default_cid = default["cid"]
 
-    print(f"==> renombrando canal default (cid={default_cid}) a '{ch1}'")
-    sq.send(f"channeledit cid={default_cid} channel_name={escape(ch1)}")
+    default_name = default.get("channel_name", "").replace("\\s", " ")
+    if default_name == ch1:
+        print(f"==> canal default ya se llama '{ch1}', no hace falta renombrar")
+    else:
+        print(f"==> renombrando canal default (cid={default_cid}) a '{ch1}'")
+        sq.send(f"channeledit cid={default_cid} channel_name={escape(ch1)}")
     existing_names.add(ch1)
 
     for name in (ch2, ch3):
