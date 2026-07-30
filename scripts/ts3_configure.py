@@ -46,20 +46,34 @@ class ServerQuery:
         line, self.buf = self.buf.split(b"\n", 1)
         return line.decode("utf-8", "replace").strip("\r")
 
-    def send(self, command):
+    def _send_once(self, command):
         self.sock.sendall((command + "\n\r").encode("utf-8"))
         lines = []
         while True:
             line = self._readline()
             if line.startswith("error "):
-                parts = dict(
-                    kv.split("=", 1) for kv in line.split()[1:] if "=" in kv
-                )
-                if parts.get("id") != "0":
-                    raise RuntimeError(f"comando '{command}' fallo: {line}")
-                return lines
+                parts = dict(kv.split("=", 1) for kv in line.split()[1:] if "=" in kv)
+                return parts, lines
             if line:
                 lines.append(line)
+
+    def send(self, command):
+        # ServerQuery tiene proteccion anti-flood (por default ~1 comando cada 350ms).
+        # Reintenta con el backoff que el propio server pide en "extra_msg=please\swait\sN\sseconds".
+        for _ in range(10):
+            parts, lines = self._send_once(command)
+            if parts.get("id") == "0":
+                return lines
+            if parts.get("id") != "524":
+                raise RuntimeError(f"comando '{command}' fallo: id={parts.get('id')} msg={parts.get('msg')}")
+            wait_s = 1.0
+            extra = parts.get("extra_msg", "").replace("\\s", " ")
+            for token in extra.split():
+                if token.isdigit():
+                    wait_s = float(token)
+                    break
+            time.sleep(wait_s + 0.1)
+        raise RuntimeError(f"comando '{command}' rechazado por flood-protection tras varios reintentos")
 
     def read_banner(self):
         # El server manda un banner de bienvenida de varias lineas antes de aceptar comandos.
@@ -113,13 +127,18 @@ def main():
 
     print("==> buscando el canal default")
     channels = parse_kv_lines(sq.send("channellist -flags"))
+    existing_names = {c.get("channel_name", "").replace("\\s", " ") for c in channels}
     default = next((c for c in channels if c.get("channel_flag_default") == "1"), channels[0])
     default_cid = default["cid"]
 
     print(f"==> renombrando canal default (cid={default_cid}) a '{ch1}'")
     sq.send(f"channeledit cid={default_cid} channel_name={escape(ch1)}")
+    existing_names.add(ch1)
 
     for name in (ch2, ch3):
+        if name in existing_names:
+            print(f"==> canal '{name}' ya existe, no lo vuelvo a crear")
+            continue
         print(f"==> creando canal '{name}'")
         sq.send(f"channelcreate channel_name={escape(name)} cpid=0")
 
