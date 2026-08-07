@@ -1,0 +1,33 @@
+name: TS3 ensure owner admin
+
+on:
+  schedule:
+    - cron: "*/20 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ensure-owner:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar SSH
+        env:
+          TS3_SSH_KEY: ${{ secrets.TS3_SSH_KEY }}
+          TS3_HOST: ${{ vars.TS3_HOST }}
+        run: |
+          if [ -z "$TS3_HOST" ]; then
+            echo "::error::Falta la variable de repo TS3_HOST"
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$TS3_SSH_KEY" > ~/.ssh/ts3_oracle
+          chmod 600 ~/.ssh/ts3_oracle
+          ssh-keyscan -H "$TS3_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Re-asegurar grupo Owner
+        env:
+          TS3_HOST: ${{ vars.TS3_HOST }}
+        run: |
+          ssh -i ~/.ssh/ts3_oracle "ubuntu@$TS3_HOST" \
+            "cd ts3 && git pull --ff-only -q && chmod +x scripts/ensure_owner.sh && ./scripts/ensure_owner.sh"
