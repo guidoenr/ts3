@@ -104,6 +104,75 @@ Los valores salen de variables de entorno (poné un `.env` antes del primer depl
 
 Por default, la gente nueva entra como **Guest** normal — el owner se vuelve admin con la privilege key y promueve a mano a quien quiera desde el cliente (más seguro: si la password se filtra, un desconocido entra sin poder romper nada). Poniendo `TS3_EVERYONE_ADMIN=true` en `.env` antes del primer deploy, en cambio, todo el que se conecta queda admin automáticamente — más cómodo para un grupo muy chico y de mucha confianza, pero cualquiera con la password puede kickear/banear o borrar canales. Como el repo es público, si usás ese modo evitá dejar la password real en `.env.example`/git.
 
+## Bot de musica (TS3AudioBot)
+
+Ademas del server, `docker-compose.yml` levanta un segundo container (`audiobot/`) con
+[TS3AudioBot](https://github.com/Splamy/TS3AudioBot): se conecta como un cliente mas, no
+toca la config del virtual server ni el volumen `ts3-data`, y si se cae o se reinicia el
+server principal ni se entera.
+
+Corre la rama `develop` del bot (no `master`): `master` quedo congelada en la version 0.12.2
+en 2021 (dotnet core 3.1, EOL), mientras que `develop` sigue con builds activos — ver
+[nightly server](https://splamy.de/Nightly#ts3ab). Se puede fijar otra rama con el build arg
+`TS3AB_CHANNEL` en `audiobot/Dockerfile`.
+
+### Comandos (mandarlos por chat/PM al bot dentro del server)
+
+| Comando | Que hace |
+|---|---|
+| `!tema <busqueda>` | Busca en YouTube y reproduce el primer resultado de una (alias custom, ver `audiobot/entrypoint.sh`) |
+| `!play <url>` | Reproduce una URL o archivo directo |
+| `!volume <0-100>` / `!volume +/-<n>` | Volumen absoluto o relativo |
+| `!pause` / `!play` / `!stop` / `!next` / `!previous` | Control de reproduccion |
+| `!bot come` | Trae al bot al canal donde estas parado |
+| `!bot move <channel_id>` | Mueve al bot a un canal por id |
+| `!bot name <nombre>` | Le cambia el nombre al bot |
+| `!song` | Muestra que esta sonando ahora |
+
+`!tema`, `!volume` y el resto de comandos de reproduccion/busqueda estan abiertos a
+cualquiera que se conecte (ver la regla sin restricciones en `entrypoint.sh`). Renombrar o
+mover el bot (`!bot name`, `!bot move`, `!bot come`, settings) esta limitado a los grupos
+Server Admin (sgid=6) y Owner (sgid=9) — los mismos que ya maneja `grant_admin.sh`/
+`ensure_owner.sh` — para que no cualquiera con la password del server pueda tocarlo.
+
+La musica se resuelve en vivo con `yt-dlp` + `ffmpeg` (no hay delay artificial, pero
+tampoco es instantaneo: resolver la busqueda y arrancar el stream tarda unos segundos,
+tipicamente 10-20s con `!tema` porque primero busca y despues resuelve el resultado).
+Calidad de audio a 96kbps Opus (`audiobot/entrypoint.sh`, seccion `[audio]` — "deluxe" segun
+la propia doc del bot).
+
+### Gotchas que costó pisar (ya resueltos en `audiobot/`, dejar constancia por si el bot se
+actualiza y algo de esto cambia)
+
+- **DNS**: el build self-contained de TS3AudioBot no resuelve nombres de servicio de Docker
+  Compose (`Could not read or resolve address`). Por eso el container comparte la red del
+  servicio `teamspeak` (`network_mode: "service:teamspeak"`) y se conecta por `127.0.0.1`
+  en vez de por nombre.
+- **libopus**: hace falta el paquete `libopus-dev` (no alcanza con `libopus0`) porque el bot
+  busca la lib sin sufijo de version (`libopus.so`, symlink que solo deja el paquete `-dev`).
+- **yt-dlp**: el paquete de Debian bookworm esta anclado a una version vieja que ya no le
+  gana a los cambios de YouTube ("Precondition check failed", HTTP 400) — se baja el binario
+  standalone mas nuevo directo de GitHub Releases en el build de la imagen.
+- **Ruta de yt-dlp**: tiene que ser absoluta (`/usr/local/bin/yt-dlp`) en el config del bot.
+  TS3AudioBot no busca en `$PATH`, hace un chequeo de archivo literal — un `"yt-dlp"` a
+  secas siempre tira `Youtube-Dl could not be found`, aunque el binario funcione perfecto
+  a mano.
+- **rights.toml por defecto**: el que genera el bot solo no alcanza para lo que necesitamos
+  (falta `cmd.search.*`/`cmd.param` para que `!tema` funcione, y el `groupid = []` en la
+  regla de "todos pueden tocar musica" hay que dejarlo directamente sin la clave, no en
+  `[]`, para que matchee de verdad a cualquiera). El de `entrypoint.sh` ya viene con todo
+  esto resuelto.
+
+### Actualizar o reinstalar el bot
+
+```bash
+sudo docker compose up -d --build audiobot   # reconstruye solo el bot, no toca el TS3 server
+```
+
+Su config (`bots/default/bot.toml`, `rights.toml`, historial, identidad) vive en el volumen
+`ts3ab-data`, separado de `ts3-data`. Borrarlo (`docker volume rm ts3ab-data`) resetea el bot
+a los defaults de `entrypoint.sh` en el proximo boot, sin afectar el server ni sus canales.
+
 ## Mantenimiento
 
 - **Logs**: `sudo docker compose logs -f teamspeak`

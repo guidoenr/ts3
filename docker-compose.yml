@@ -12,6 +12,21 @@ services:
     volumes:
       - ts3-data:/var/ts3server/
 
+  audiobot:
+    build: ./audiobot
+    container_name: ts3-audiobot
+    restart: unless-stopped
+    # Comparte la red del servicio "teamspeak" (mismo netns, habla por 127.0.0.1) en vez de
+    # una network de Docker Compose propia: los builds de TS3AudioBot no resuelven bien el
+    # nombre de servicio ("Could not read or resolve address"), ver audiobot/entrypoint.sh.
+    network_mode: "service:teamspeak"
+    depends_on:
+      - teamspeak
+    volumes:
+      - ts3ab-data:/data
+
 volumes:
   ts3-data:
     name: ts3-data
+  ts3ab-data:
+    name: ts3ab-data
