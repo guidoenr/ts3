@@ -22,10 +22,23 @@ services:
     network_mode: "service:teamspeak"
     depends_on:
       - teamspeak
+      - pot-provider
     environment:
       TS3AB_SERVER_PASSWORD: ${TS3_SERVER_PASSWORD:-}
     volumes:
       - ts3ab-data:/data
+
+  pot-provider:
+    image: brainicism/bgutil-ytdlp-pot-provider
+    container_name: ts3-pot-provider
+    restart: unless-stopped
+    # YouTube bloquea por reputacion de IP a los datacenters (ver audiobot/Dockerfile) - este
+    # servicio le genera a yt-dlp los tokens que YouTube pide para no tratarlo como bot. Misma
+    # red que teamspeak/audiobot: solo se habla por 127.0.0.1:4416 dentro del netns compartido,
+    # nunca queda expuesto afuera de la VM.
+    network_mode: "service:teamspeak"
+    depends_on:
+      - teamspeak
 
 volumes:
   ts3-data:

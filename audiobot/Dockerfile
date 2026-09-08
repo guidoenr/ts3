@@ -15,6 +15,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN curl -fsSL -o /usr/local/bin/yt-dlp https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux \
     && chmod +x /usr/local/bin/yt-dlp
 
+# YouTube bloquea por reputacion de IP a los datacenters (Oracle/AWS/GCP/etc, no es algo
+# nuestro): sin esto, yt-dlp tira "Sign in to confirm you're not a bot" siempre, cookies
+# incluidas. El plugin bgutil-ytdlp-pot-provider genera los tokens que YouTube pide,
+# hablando con el servicio "pot-provider" del compose (127.0.0.1:4416, misma red que
+# comparten teamspeak/audiobot) - no depende de ninguna cuenta ni cookies.
+RUN mkdir -p /root/.yt-dlp/plugins \
+    && curl -fsSL -o /root/.yt-dlp/plugins/bgutil-ytdlp-pot-provider.zip \
+       https://github.com/Brainicism/bgutil-ytdlp-pot-provider/releases/download/2.0.0/bgutil-ytdlp-pot-provider.zip
+
 WORKDIR /app
 ARG TS3AB_CHANNEL=develop
 RUN set -eux; \
