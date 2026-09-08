@@ -42,6 +42,28 @@ path = "/usr/local/bin/yt-dlp"
 EOF
 fi
 
+# Placeholder valido (vacio) si todavia no se subieron cookies reales - asi yt-dlp no
+# rompe por "file not found" antes de que existan. Para actualizar cookies (se vencen o
+# YouTube las invalida cada tanto), solo hay que pisar este archivo con uno nuevo, nada mas
+# que tocar. Nunca se genera desde git/la imagen: se sube aparte, a mano, directo al volumen.
+if [ ! -f /data/cookies.txt ]; then
+  cat > /data/cookies.txt << 'EOF'
+# Netscape HTTP Cookie File
+EOF
+fi
+
+# yt-dlp no tiene una config propia dentro del toml del bot - se le pasan flags globales
+# via su propio archivo de config, que lee automaticamente sin que el bot sepa nada de esto.
+# player_client=web porque el que usa por default (visionos) ni siquiera intenta pedir
+# el token del pot-provider y tira LOGIN_REQUIRED directo.
+if [ ! -f /root/.config/yt-dlp/config ]; then
+  mkdir -p /root/.config/yt-dlp
+  cat > /root/.config/yt-dlp/config << 'EOF'
+--cookies /data/cookies.txt
+--extractor-args "youtube:player_client=web"
+EOF
+fi
+
 if [ ! -f /data/rights.toml ]; then
   cat > /data/rights.toml << 'EOF'
 # Generado una sola vez por entrypoint.sh. Referencia de sintaxis:
