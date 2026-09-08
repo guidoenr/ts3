@@ -11,8 +11,11 @@
 #   COMPARTMENT_ID   default: la tenancy raíz (se lee de ~/.oci/config)
 #   REGION           default: la de ~/.oci/config
 #   DISPLAY_PREFIX   default: ts3
-#   SHAPE_OCPUS      default: 1
-#   SHAPE_MEMORY_GB  default: 6
+#   SHAPE            default: VM.Standard.A1.Flex (ARM, muy pedido — "Out of host capacity" es común).
+#                     Alternativa mucho más disponible: VM.Standard.E2.1.Micro (AMD, shape fijo,
+#                     1/8 OCPU / 1GB RAM — de sobra para TS3 solo, casi nunca sin capacidad).
+#   SHAPE_OCPUS      default: 1   (ignorado si SHAPE no es *.Flex)
+#   SHAPE_MEMORY_GB  default: 6  (ignorado si SHAPE no es *.Flex)
 #   SSH_PUBLIC_KEY   default: ~/.ssh/ts3_oracle.pub (se genera si no existe)
 #   MAX_LAUNCH_ATTEMPTS   default: 5   (reintentos ante "Out of host capacity")
 #   LAUNCH_RETRY_SECONDS  default: 60
@@ -26,6 +29,7 @@ command -v oci >/dev/null 2>&1 || {
 COMPARTMENT_ID="${COMPARTMENT_ID:-$(awk -F= '/^tenancy=/{print $2}' ~/.oci/config | head -1)}"
 REGION="${REGION:-$(awk -F= '/^region=/{print $2}' ~/.oci/config | head -1)}"
 PREFIX="${DISPLAY_PREFIX:-ts3}"
+SHAPE="${SHAPE:-VM.Standard.A1.Flex}"
 SHAPE_OCPUS="${SHAPE_OCPUS:-1}"
 SHAPE_MEMORY_GB="${SHAPE_MEMORY_GB:-6}"
 SSH_KEY_PATH="${SSH_PUBLIC_KEY:-$HOME/.ssh/ts3_oracle}"
@@ -181,7 +185,11 @@ else
 fi
 
 echo "==> Esperando a que la instancia esté RUNNING..."
-oci_r compute instance get --instance-id "$INSTANCE_ID" --wait-for-state RUNNING >/dev/null
+for _ in $(seq 1 60); do
+  STATE=$(oci_r compute instance get --instance-id "$INSTANCE_ID" --query "data.\"lifecycle-state\"" --raw-output)
+  [ "$STATE" = "RUNNING" ] && break
+  sleep 5
+done
 PUBLIC_IP=$(oci_r compute instance list-vnics --instance-id "$INSTANCE_ID" --query "data[0].\"public-ip\"" --raw-output)
 
 echo ""
