@@ -54,13 +54,16 @@ fi
 
 # yt-dlp no tiene una config propia dentro del toml del bot - se le pasan flags globales
 # via su propio archivo de config, que lee automaticamente sin que el bot sepa nada de esto.
-# player_client=web porque el que usa por default (visionos) ni siquiera intenta pedir
-# el token del pot-provider y tira LOGIN_REQUIRED directo.
+# player_client=mweb: el default (visionos) ni siquiera pide el token del pot-provider y
+# tira LOGIN_REQUIRED directo; "web" ya pide bien el token (cookies+pot+deno funcionando)
+# pero YouTube fuerza SABR en ese client y no da URLs directas ("Requested format is not
+# available"). "mweb" (mobile web) es el que en la practica devuelve URLs usables con
+# cookies puestas - probado a mano contra varios clients antes de fijar este.
 if [ ! -f /root/.config/yt-dlp/config ]; then
   mkdir -p /root/.config/yt-dlp
   cat > /root/.config/yt-dlp/config << 'EOF'
 --cookies /data/cookies.txt
---extractor-args "youtube:player_client=web"
+--extractor-args "youtube:player_client=mweb"
 EOF
 fi
 
