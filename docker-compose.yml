@@ -11,37 +11,10 @@ services:
       TS3SERVER_LICENSE: ${TS3SERVER_LICENSE:-accept}
     volumes:
       - ts3-data:/var/ts3server/
-
-  audiobot:
-    build: ./audiobot
-    container_name: ts3-audiobot
-    restart: unless-stopped
-    # Comparte la red del servicio "teamspeak" (mismo netns, habla por 127.0.0.1) en vez de
-    # una network de Docker Compose propia: los builds de TS3AudioBot no resuelven bien el
-    # nombre de servicio ("Could not read or resolve address"), ver audiobot/entrypoint.sh.
-    network_mode: "service:teamspeak"
-    depends_on:
-      - teamspeak
-      - pot-provider
-    environment:
-      TS3AB_SERVER_PASSWORD: ${TS3_SERVER_PASSWORD:-}
-    volumes:
-      - ts3ab-data:/data
-
-  pot-provider:
-    image: brainicism/bgutil-ytdlp-pot-provider
-    container_name: ts3-pot-provider
-    restart: unless-stopped
-    # YouTube bloquea por reputacion de IP a los datacenters (ver audiobot/Dockerfile) - este
-    # servicio le genera a yt-dlp los tokens que YouTube pide para no tratarlo como bot. Misma
-    # red que teamspeak/audiobot: solo se habla por 127.0.0.1:4416 dentro del netns compartido,
-    # nunca queda expuesto afuera de la VM.
-    network_mode: "service:teamspeak"
-    depends_on:
-      - teamspeak
+    # Reserva de memoria (no limite duro): en una VM de 1GB, cualquier otra cosa que corra
+    # ahi (o llegue a correr en el futuro) no puede dejar sin RAM al server critico.
+    mem_reservation: 256m
 
 volumes:
   ts3-data:
     name: ts3-data
-  ts3ab-data:
-    name: ts3ab-data

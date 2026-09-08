@@ -3,4 +3,4 @@
 data/
 *.log
 __pycache__/
-cookies.txt
+*cookies*.txt
