@@ -6,8 +6,23 @@ FROM debian:bookworm-slim
 # libopus-dev (no solo libopus0) porque el bot busca la lib sin sufijo de version
 # ("libopus.so", no "libopus.so.0") - solo el paquete -dev deja ese symlink.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates curl libopus-dev ffmpeg \
+      ca-certificates curl unzip libopus-dev ffmpeg \
     && rm -rf /var/lib/apt/lists/*
+
+# yt-dlp necesita un runtime de JS para resolver algunos de los desafios que pone YouTube
+# (firma de "n", etc) - sin esto tira "No supported JavaScript runtime could be found" y
+# encima ni intenta el intercambio de token con el pot-provider (queda en LOGIN_REQUIRED
+# directo). deno es liviano y yt-dlp lo detecta solo si esta en el PATH.
+RUN set -eux; \
+    case "$(dpkg --print-architecture)" in \
+      amd64) denoarch=x86_64 ;; \
+      arm64) denoarch=aarch64 ;; \
+      *) echo "Arquitectura no soportada para deno: $(dpkg --print-architecture)" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL -o /tmp/deno.zip "https://github.com/denoland/deno/releases/latest/download/deno-${denoarch}-unknown-linux-gnu.zip"; \
+    unzip -o /tmp/deno.zip -d /usr/local/bin; \
+    rm /tmp/deno.zip; \
+    chmod +x /usr/local/bin/deno
 
 # yt-dlp de apt (Debian bookworm) esta anclado a 2023.03.04: YouTube cambia seguido su API
 # interna y una version vieja falla todo el tiempo ("Precondition check failed", HTTP 400).
