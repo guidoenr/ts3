@@ -12,11 +12,31 @@ cd "$REPO_DIR"
 OWNER_SGID="${TS3_OWNER_SGID:-9}"
 OWNER_CLDBIDS="${TS3_OWNER_CLDBIDS:-3,4}"
 
-ADMIN_PASSWORD=$(sudo docker compose logs teamspeak 2>/dev/null \
-  | grep 'loginname=' | sed -E 's/.*password= ?"([^"]+)".*/\1/' | tail -1)
+# El log del container solo trae "loginname=/password=" en el primerisimo arranque del
+# volumen - un "docker compose up" que recrea el container (sin tocar el volumen) reinicia
+# el log y la borra, aunque la cuenta en si siga andando igual. Por eso la persistimos en
+# .env la primera vez que la conseguimos, y de ahi en adelante se lee de ahi directo, sin
+# depender de que el log todavia la tenga.
+if [ -f .env ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source .env
+  set +a
+fi
+ADMIN_PASSWORD="${TS3_ADMIN_PASSWORD:-}"
+
 if [ -z "$ADMIN_PASSWORD" ]; then
-  echo "No pude sacar la password de serveradmin de los logs" >&2
+  ADMIN_PASSWORD=$(sudo docker compose logs teamspeak 2>/dev/null \
+    | grep 'loginname=' | sed -E 's/.*password= ?"([^"]+)".*/\1/' | tail -1)
+fi
+
+if [ -z "$ADMIN_PASSWORD" ]; then
+  echo "No pude sacar la password de serveradmin (ni de .env ni de los logs)" >&2
   exit 1
+fi
+
+if ! grep -q '^TS3_ADMIN_PASSWORD=' .env 2>/dev/null; then
+  printf 'TS3_ADMIN_PASSWORD=%q\n' "$ADMIN_PASSWORD" >> .env
 fi
 
 python3 - "$ADMIN_PASSWORD" "$OWNER_SGID" "$OWNER_CLDBIDS" << 'PYEOF'

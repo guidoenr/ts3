@@ -15,8 +15,32 @@ KEY="${3:-$HOME/.ssh/ts3_oracle}"
 ssh -i "$KEY" -o StrictHostKeyChecking=accept-new "ubuntu@$IP" bash -s -- "$QUERY" << 'REMOTE'
 set -euo pipefail
 QUERY="$1"
-ADMIN_PW=$(cd ~/ts3 && sudo docker compose logs teamspeak 2>/dev/null \
-  | grep 'loginname=' | sed -E 's/.*password= ?"([^"]+)".*/\1/' | tail -1)
+cd ~/ts3
+
+# Ver ensure_owner.sh: el log del container solo trae la password en el primerisimo
+# arranque del volumen, asi que la persistimos en .env la primera vez para no depender
+# de que el log la siga teniendo despues de un "docker compose up" que recree el container.
+if [ -f .env ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source .env
+  set +a
+fi
+ADMIN_PW="${TS3_ADMIN_PASSWORD:-}"
+
+if [ -z "$ADMIN_PW" ]; then
+  ADMIN_PW=$(sudo docker compose logs teamspeak 2>/dev/null \
+    | grep 'loginname=' | sed -E 's/.*password= ?"([^"]+)".*/\1/' | tail -1)
+fi
+
+if [ -z "$ADMIN_PW" ]; then
+  echo "No pude sacar la password de serveradmin (ni de .env ni de los logs)" >&2
+  exit 1
+fi
+
+if ! grep -q '^TS3_ADMIN_PASSWORD=' .env 2>/dev/null; then
+  printf 'TS3_ADMIN_PASSWORD=%q\n' "$ADMIN_PW" >> .env
+fi
 
 python3 - "$ADMIN_PW" "$QUERY" << 'PYEOF'
 import socket, sys, time
