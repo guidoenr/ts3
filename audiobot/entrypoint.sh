@@ -7,7 +7,9 @@ set -eu
 mkdir -p /data/bots/default
 
 if [ ! -f /data/bots/default/bot.toml ]; then
-  cat > /data/bots/default/bot.toml << 'EOF'
+  # Escapa \ y " para que una password con esos caracteres no rompa el TOML.
+  ESCAPED_PW=$(printf '%s' "${TS3AB_SERVER_PASSWORD:-}" | sed 's/\\/\\\\/g; s/"/\\"/g')
+  cat > /data/bots/default/bot.toml << EOF
 run = true
 
 [connect]
@@ -17,6 +19,7 @@ run = true
 # probo primero con el nombre del servicio y fallaba con "Could not read or resolve address".
 address = "127.0.0.1:9987"
 name = "AudioBot"
+server_password = { pw = "${ESCAPED_PW}", hashed = false, autohash = false }
 
 [commands.alias]
 tema = "!xecute (!search from youtube (!arg 0)) (!search play 0)"
